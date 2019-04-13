@@ -1,6 +1,10 @@
+// External imports
 import express from 'express';
 import bodyParser from 'body-parser';
 import mongoose from 'mongoose';
+
+// Local modules import 
+import { Product, User } from './models';
 
 const app = express();
 const PORT = 5000;
@@ -26,51 +30,67 @@ app.get('/', (req, res) => {
 
 // Sign up to the system
 app.post('/register', (req, res) => {
-    res.status(200).send({
-        success: true,
-        message: "Product added successfully",
-    });
+    let newUser = new User();
+    newUser.firstname = req.body.firstname;
+    newUser.surname = req.body.surname;
+    newUser.email = req.body.email;
+    newUser.username = req.body.username;
+    newUser.password = req.body.password;
+    newUser.save(err => {
+        if(err) {
+            res.send(err)
+        }
+        res.status(201).send({
+            success: true,
+            message: "You have registered successfully",
+            data: newUser
+        });
+    })
 });
 
 // Login
 app.post('/login', (req, res) => {
+    const { username, password } = req.body;
     res.status(200).send({
         success: true,
-        message: "Product added successfully",
+        message: "You have logged in successfully",
     });
 });
 
 // Get all items in store
 app.get('/products', (req, res) => {
-    const items = [
-        {
-            id: "00292999jghsss",
-            name: "Prawn",
-            price: 7.00
-        },
-        {
-            id: "00297777hgddd0088hsss",
-            name: "Crab Platter",
-            price: 15.00
-        },
-        {
-            id: "0po078888hyyyoo",
-            name: "Fries",
-            price: 1.50
+    Product.find((err, products) => {
+        if (err) {
+            res.send(err)
         }
-    ]
-    res.status(200).send({
-        success: true,
-        message: "Products retrieved successfully",
-        data: items
-    });
+        if (!products || products.length < 1) {
+            res.status(404).send({
+                success: false,
+                message: "There are no products available at the moment"
+            });
+        }
+        res.status(200).send({
+            success: true,
+            message: "Products retrieved successfully",
+            data: products
+        });
+    })
 });
 
 // Add food to the list of products
 app.post('/products', (req, res) => {
-    res.status(200).send({
-        success: true,
-        message: "Product added successfully",
+    const { name, price } = req.body;
+    let newProduct = new Product();
+    newProduct.name = name;
+    newProduct.price = price;
+    newProduct.save(err => {
+        if (err) {
+            res.send(err)
+        }
+        res.status(201).send({
+            success: true,
+            message: "Product added successfully",
+        });
     });
 });
 
