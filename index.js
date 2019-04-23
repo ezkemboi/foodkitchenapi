@@ -99,12 +99,13 @@ app.get("/", (req, res) => {
 
 // Sign up to the system
 app.post("/register", async (req, res) => {
-  let newUser = new User();
-  const { firstname, surname, email, username, password } = req.body;
+  const { firstName, surname, email, username, password } = req.body;
   // check if user with email exist
-  const existingUserEmail = await User.findOne({ email });
+  const existingUserEmail = await User.findOne({ where: { email: email } });
   // Check if username already in existence
-  const existingUserUsername = await User.findOne({ username });
+  const existingUserUsername = await User.findOne({
+    where: { username: username }
+  });
   const salt = bcrypt.genSaltSync(10);
   const hashedPassword = bcrypt.hashSync(password, salt);
   if (existingUserEmail) {
@@ -120,35 +121,31 @@ app.post("/register", async (req, res) => {
       message: "User with that username already exist"
     });
   }
-  // Create new user and save
-  newUser.firstname = firstname;
-  newUser.surname = surname;
-  newUser.email = email;
-  newUser.username = username;
-  newUser.password = hashedPassword;
-  newUser.save(err => {
-    if (err) {
-      res.send(err);
-    }
-    // Exclude password from json data
-    const data = {
-      firstname: newUser.firstname,
-      surname: newUser.surname,
-      email: newUser.email,
-      username: newUser.username
-    };
-    res.status(201).send({
-      success: true,
-      message: "You have registered successfully",
-      data
-    });
+  const newUser = await User.create({
+    // Create new user and save
+    firstName: firstName,
+    surname: surname,
+    email: email,
+    username: username,
+    password: hashedPassword
+  });
+  const data = {
+    firstName: newUser.firstName,
+    surname: newUser.surname,
+    email: newUser.email,
+    username: newUser.username
+  };
+  res.status(201).send({
+    success: true,
+    message: "You have registered successfully",
+    data
   });
 });
 
 // Login to the system
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
-  const findUser = await User.findOne({ username });
+  const findUser = await User.findOne({ where: { username: username } });
   if (!findUser) {
     res.status(404).send({
       success: false,
@@ -212,7 +209,7 @@ app.post("/products", async (req, res) => {
 // Get a single item
 app.get("/products/:id", async (req, res) => {
   const { id } = req.params;
-  const findProduct = await Product.findOne({ _id: id });
+  const findProduct = await Product.findOne({ where: { id } });
   if (!findProduct) {
     res.status(404).send({
       success: false,
@@ -231,11 +228,11 @@ app.put("/products/:id", async (req, res) => {
   const { id } = req.params;
   const { name, price } = req.body;
   //  Find product and update it
-  const findProduct = await Product.findOneAndReplace(
-    { _id: id },
-    { name, price }
+  const findAndUpdateProduct = await Product.update(
+    { name: name, price: price },
+    { where: { id } }
   );
-  if (!findProduct) {
+  if (!findAndUpdateProduct) {
     res.status(404).send({
       success: false,
       message: "Product does not exist"
@@ -251,13 +248,14 @@ app.put("/products/:id", async (req, res) => {
 // Delete a single item
 app.delete("/products/:id", async (req, res) => {
   const { id } = req.params;
-  const findProduct = await Product.findOneAndDelete({ _id: id });
+  const findProduct = await Product.destroy({ where: { id: id } });
   if (!findProduct) {
     res.status(404).send({
       success: false,
       message: "Product does not exist"
     });
   }
+
   res.status(200).send({
     success: true,
     message: "Product deleted successfully"
