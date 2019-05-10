@@ -18,7 +18,7 @@ const sequelize = new Sequelize({
   storage: dbPath
 });
 
-// Create tables
+// Create user table to store user details
 const User = sequelize.define(
   "user",
   {
@@ -50,6 +50,7 @@ const User = sequelize.define(
   }
 );
 
+// Create product table
 const Product = sequelize.define(
   "product",
   {
@@ -68,6 +69,22 @@ const Product = sequelize.define(
     // options
   }
 );
+
+// Define cart details  
+const Cart = sequelize.define(
+  "Cart",
+  {
+    amount: Sequelize.INTEGER
+  },
+  {
+    // Options
+  }
+)
+
+// Define relationships
+Cart.belongsTo(User)
+Cart.belongsTo(Product)
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -222,6 +239,110 @@ app.get("/products/:id", async (req, res) => {
     data: findProduct
   });
 });
+
+// Add products to cart
+app.post("/cart", async (req, res) => {
+  // Product should contain productId and quantity
+  const { userId, product } = req.body;
+  const findUser = await User.findOne({ where: { id: userId } })
+  if (!findUser) {
+    res.status(404).send({
+      success: false,
+      message: "The user does not exist"
+    })
+  }
+
+  // Find product 
+  const { productId, quantity } = product;
+  const findProduct = await Product.findOne({ where: { id: productId } })
+
+  if (!findProduct) {
+    res.status(404).send({
+      success: false,
+      message: "Product Does not exist"
+    })
+  }
+  // Do manipulation and calculation of the total price to add to the cart
+  const totalPrice = findProduct.price * quantity;
+  const addCart = await Cart.create({
+    userId: userId,
+    amount: totalPrice,
+    productId: productId
+  })
+  res.status(201).send({
+    success: true,
+    message: "Product added to cart successfully",
+    data: addCart
+  })
+})
+
+// Get items in Cart
+app.get("/cart/:userId", async (req, res) => {
+  // Get all items in cart
+  const { userId } = req.params
+  const getCartItems = await Cart.findAll({ where: { userId } });
+  if (!getCartItems || getCartItems.length < 1) {
+    res.status(404).send({
+      success: false,
+      message: "There are no items in cart at the moment in your cart"
+    })
+  }
+  res.status(200).send({
+    success: true,
+    message: "Successfully retrieved items in cart",
+    data: getCartItems
+  })
+})
+
+// Remove item from cart
+app.delete("/cart/:userId/:productId", async (req, res) => {
+  const { userId, productId } = req.params;
+  const getProduct = await Cart.destroy({ where: { userId, productId } });
+  if (!getProduct) {
+    res.status(404).send({
+      success: false,
+      message: "The product does not exist in your cart"
+    })
+  }
+  res.status(200).send({
+    success: true,
+    message: "The product was removed successfully from cart"
+  })
+})
+
+// Edit cart item, that is, reduce the number of quantity
+app.patch("/cart/:userId/:productId", async (req, res) => {
+  const { userId, productId } = req.params
+  const { quantity } = req.body;
+
+  const findProduct = await Product.findOne({ where: { id: productId } })
+  if (!findProduct) {
+    res.status(404).send({
+      success: false,
+      message: "Product Does not exist"
+    })
+  }
+  // Do manipulation and calculation of the total price to add to the cart
+  const totalPrice = findProduct.price * quantity;
+
+  // Update the product with the price and quantity
+  const updateProduct = await Cart.update(
+    { amount: totalPrice },
+    { where: { userId, productId } }
+  )
+
+  if (!updateProduct) {
+    res.status(404).send({
+      success: false,
+      message: "Product was not updated in the cart"
+    })
+  }
+  res.status(200).send({
+    success: true,
+    message: "Product updated successfully in cart",
+    data: { productId, userId, quantity, totalAmount: totalPrice }
+  })
+})
 
 // Update a single item
 app.put("/products/:id", async (req, res) => {
