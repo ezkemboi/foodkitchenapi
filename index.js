@@ -162,6 +162,12 @@ app.post("/register", async (req, res) => {
 // Login to the system
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
+  if (!username || !password) {
+    res.status(400).send({
+      success: false,
+      message: "Please provide username and password"
+    })
+  }
   const findUser = await User.findOne({ where: { username: username } });
   if (!findUser) {
     res.status(404).send({
@@ -177,9 +183,16 @@ app.post("/login", async (req, res) => {
       message: "You have provided wrong password"
     });
   }
+  // Just pass userId, username and email to the response
+  const userDetails = {
+    id: findUser.id,
+    username: findUser.username,
+    email: findUser.email,
+  }
   res.status(200).send({
     success: true,
-    message: "You have logged in successfully"
+    message: "You have logged in successfully",
+    user: userDetails
   });
 });
 
